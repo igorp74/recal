@@ -1,0 +1,75 @@
+# My Events
+# Format: DateRule ;[type, [fg_color], [bg_color]]  Description
+# Colors: black, red, green, yellow, blue, magenta, cyan, white
+#
+# DateRule can be:
+#   E           (Easter Sunday)
+#   E+N / E-N   (N days after/before Easter)
+#   MM/DOW#N    (Nth Day of Week (DOW) of Month MM; 
+#                DOW: 0=Sun, 1=Mon..6=Sat 
+#                N:1-5. e.g. 5/1#1 is 1st Mon of May)
+#   MM/DD       (Annual event on MM/DD of current year)
+#   MM/DD?      (Same as MM/DD)
+#   MM/DD?YYYY  (Event on MM/DD of specified YYYY)
+#   MM/DD?D[+-]N (If MM/DD of year is DOW D (0=Sun..6=Sat), offset N days. e.g. 3/17?6+2)
+#   MM/DD/YYYY  (Full US date)
+#   DD-MM-YYYY  (Full date)
+# 
+#   Foreground color (fg_color) and background color (bg_color) are optional
+
+
+# Holidays and non-working days in Republic of Ireland
+#------------------------------------------------------
+1/1       ;[ie, red] 🇮🇪 New Year's Day
+1/1?6+2   ;[ie, red] 🇮🇪 New Year's Day
+1/1?0+1   ;[ie, red] 🇮🇪 New Year's Day
+2/1       ;[ie, red] 🇮🇪 St Brigid's Day
+2/1?0+1   ;[ie, red] 🇮🇪 St Brigid's Day
+2/1?6+2   ;[ie, red] 🇮🇪 St Brigid's Day
+3/17      ;[ie, red] 🇮🇪 St Patrick's Day
+3/17?0+1  ;[ie, red] 🇮🇪 St Patrick's Day
+3/17?6+2  ;[ie, red] 🇮🇪 St Patrick's Day
+E+1       ;[ie, red] 🇮🇪 Easter Monday Holiday
+5/1#1     ;[ie, red] 🇮🇪 May Day
+6/1#1     ;[ie, red] 🇮🇪 June Bank Holiday
+8/1#1     ;[ie, red] 🇮🇪 August Bank Holiday
+10/1#5    ;[ie, red] 🇮🇪 October Bank Holiday (Lá Saoire i mí Dheireadh Fómhair)
+12/25     ;[ie, red] 🇮🇪 Christmas Day Holiday
+12/25?0+1 ;[ie, red] 🇮🇪 Christmas Day Holiday
+12/25?6+2 ;[ie, red] 🇮🇪 Christmas Day Holiday
+12/26     ;[ie, red] 🇮🇪 St Stephen's Day Holiday
+12/26?0+2 ;[ie, red] 🇮🇪 St Stephen's Day Holiday
+12/26?1+1 ;[ie, red] 🇮🇪 St Stephen's Day Holiday
+12/26?6+2 ;[ie, red] 🇮🇪 St Stephen's Day Holiday
+
+# USA Specific holidays
+#------------------------------------------------------
+3/7#2  ;[us, blue] 🇺🇸 Dayligh Saving Time (DST) starting
+7/4    ;[us, blue] 🇺🇸 Independence Day
+10/1#2 ;[us, blue] 🇺🇸 Columbus Day
+11/7#1 ;[us, blue] 🇺🇸 Dayligh Saving Time (DST) ending
+11/4#4 ;[us, blue] 🇺🇸 Thanksgiving Day
+11/5#4 ;[us, blue] 🇺🇸 Black Friday
+
+# Catholic church related 
+#-----------------------------------------
+E-2  ;[church, cyan] ✝️ Good Friday
+E+49 ;[church, cyan] ✝️ Pentecost
+E+60 ;[church, cyan] ✝️ Corpus Christi
+
+10/31 ;[fun] 🎃 Halloween
+2/14  ;[fun] ♥️ Valentine's Day
+
+3/7#5  ;[global] 🌐 Summer Time (UTC+01:00) begins
+10/7#5 ;[global] 🌐 Winter Time (UTC+00:00) begins 
+
+# Anniversaries
+#---------------------------------------
+01-10-2011 ;[anni, black, red] ♥️ First kiss
+08-11-2012 ;[anni, black, red] 📅 Our wedding
+
+
+# Birthdays
+#---------------------------------------
+01-01-1950 ;[bday, magenta] 🎂 Joe Sand
+12-12-1998 ;[bday, black, magenta] 🎂 Anne Le Travelle
