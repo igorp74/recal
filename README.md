@@ -5,15 +5,17 @@ Rust Event Calendar
 
 |Short|Long|Description|
 |:--:|:--|:--|
-| -m    |  --months <NUM>         | Number of months to display (1, 3, 6, or 12)
-|  -cols|  --columns <NUM>        | Number of calendar columns per row (default: 3)
-|  -s   |  --start <MONTH> <YEAR> | Start month and year
-|  -f   |  --file <PATH>          | Path to events file (default: events.txt)
-|  -mon |  --monday-first         | Week starts on Monday (default)
-|  -sun |  --sunday-first         | Week starts on Sunday
-|  -c   |  --calendar-only        | Show only calendar
-|  -e   |  --events-only          | Show only events
-|  -h   |  --help                 | Display this help message
+|  `-m`   |  `--month` \<MONTH\> | Start month
+|  `-y`   |  `--year` \<YEAR\> | Start year
+|  `-n`   |  `--num-months` \<NUM\> | Number of months to display (1 - 12)
+|  `-cols`|  `--columns` \<NUM\> | Number of calendar columns per row (default: 3)
+|  `-mon` |  `--monday-first`    | Week starts on Monday (default)
+|  `-sun` |  `--sunday-first`    | Week starts on Sunday
+|  `-w`   |  `--weeks` [on \| off]  | Show week numbers (default: on)
+|  `-c`   |  `--calendar-only`   | Show only calendar
+|  `-e`   |  `--events-only`     | Show only events
+|  `-f`   |  `--file` \<PATH\>     | Path to events file (default: events.txt)
+|  `-h`   |  `--help`            | Display this help message
 
 ## Event format
 
