@@ -24,8 +24,8 @@ Rust Event Calendar
 ## Event format
 
 
-`Format: DateRule ;[type, [fg_color], [bg_color]]  Description`
-`Colors: black, red, green, yellow, blue, magenta, cyan, white`
+`Format: DateRule ;[type, [fg_color], [bg_color]]  Description`  
+`Colors: black, red, green, yellow, blue, magenta, cyan, white`  
 Foreground color (fg_color) and background color (bg_color) are optional
 
 | DateRule | Description |
