@@ -1,3 +1,7 @@
+<div align="center">
+<img width="256" height="256" alt="recal" src="https://github.com/user-attachments/assets/f2aadfdc-c2e0-4d31-a512-1f1b60885e41" />
+</div>
+
 # recal
 Rust Event Calendar
 
@@ -5,8 +9,8 @@ Rust Event Calendar
 
 |Short|Long|Description|
 |:--:|:--|:--|
-|  `-m`   |  `--month` \<MONTH\> | Start month
-|  `-y`   |  `--year` \<YEAR\> | Start year
+|  `-m`   |  `--month` \<MONTH\> | Start month (defult is current month)
+|  `-y`   |  `--year` \<YEAR\> | Start year (default is current year)
 |  `-n`   |  `--num-months` \<NUM\> | Number of months to display (1 - 12)
 |  `-cols`|  `--columns` \<NUM\> | Number of calendar columns per row (default: 3)
 |  `-mon` |  `--monday-first`    | Week starts on Monday (default)
