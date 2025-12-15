@@ -21,6 +21,7 @@ struct Config {
     show_calendar: bool,
     show_events: bool,
     num_columns: usize,
+    show_week_numbers: bool,
 }
 
 impl Default for Config {
@@ -36,6 +37,8 @@ impl Default for Config {
             show_events: true,
             // DEFAULT: 3 columns for multi-month view
             num_columns: 3,
+            // DEFAULT: Show week numbers
+            show_week_numbers: true,
         }
     }
 }
@@ -49,12 +52,38 @@ fn main() {
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
-            "-m" | "--months" => {
+            "-n" | "--num-months" => {
                 if i + 1 < args.len() {
-                    // Using `unwrap_or_else` for better error handling on parse failure
                     config.num_months = args[i + 1].parse().unwrap_or_else(|_| {
                         eprintln!("Warning: Invalid number of months provided. Using 1.");
                         1
+                    });
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            "-m" | "--month" => {
+                if i + 1 < args.len() {
+                    config.start_month = args[i + 1].parse().unwrap_or_else(|_| {
+                        eprintln!("Warning: Invalid month provided. Using current month.");
+                        chrono::Local::now().naive_local().date().month()
+                    });
+                    // Validate month is in range 1-12
+                    if config.start_month < 1 || config.start_month > 12 {
+                        eprintln!("Warning: Month must be between 1 and 12. Using current month.");
+                        config.start_month = chrono::Local::now().naive_local().date().month();
+                    }
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            "-y" | "--year" => {
+                if i + 1 < args.len() {
+                    config.start_year = args[i + 1].parse().unwrap_or_else(|_| {
+                        eprintln!("Warning: Invalid year provided. Using current year.");
+                        chrono::Local::now().naive_local().date().year()
                     });
                     i += 2;
                 } else {
@@ -67,27 +96,10 @@ fn main() {
                         eprintln!("Warning: Invalid number of columns provided. Using 3.");
                         3
                     });
-                    // Ensure at least one column
                     if config.num_columns == 0 {
                          config.num_columns = 1;
                     }
                     i += 2;
-                } else {
-                    i += 1;
-                }
-            }
-            "-s" | "--start" => {
-                if i + 2 < args.len() {
-                    // Using `unwrap_or_else` for better error handling on parse failure
-                    config.start_month = args[i + 1].parse().unwrap_or_else(|_| {
-                        eprintln!("Warning: Invalid start month provided. Using 1.");
-                        1
-                    });
-                    config.start_year  = args[i + 2].parse().unwrap_or_else(|_| {
-                        eprintln!("Warning: Invalid start year provided. Using 2025.");
-                        2025
-                    });
-                    i += 3;
                 } else {
                     i += 1;
                 }
@@ -118,6 +130,30 @@ fn main() {
                 config.show_events = true;
                 i += 1;
             }
+            "-w" | "--weeks" => {
+                // Peek at next arg to see if it's "on" or "off"
+                if i + 1 < args.len() {
+                    match args[i + 1].to_lowercase().as_str() {
+                        "off" | "false" | "0" | "no" => {
+                            config.show_week_numbers = false;
+                            i += 2;
+                        }
+                        "on" | "true" | "1" | "yes" => {
+                            config.show_week_numbers = true;
+                            i += 2;
+                        }
+                        _ => {
+                            // Next arg is not a boolean switch, so treat -w as a simple flag (enable)
+                            config.show_week_numbers = true;
+                            i += 1;
+                        }
+                    }
+                } else {
+                    // End of args, just enable
+                    config.show_week_numbers = true;
+                    i += 1;
+                }
+            }
             "-h" | "--help" => {
                 print_help();
                 return;
@@ -145,15 +181,17 @@ fn print_help() {
     println!("Calendar with Events");
     println!("----------------------------------------------------------------------------------");
     println!("\x1b[1mUsage: ecal [OPTIONS]\x1b[0m");
-    println!(" \x1b[1m\x1b[32m -m\x1b[0m   ,  --months <NUM>          Number of months to display (1, 3, 6, or 12)");
-    println!(" \x1b[1m\x1b[32m -cols\x1b[0m,  --columns <NUM>         Number of calendar columns per row (default: 3)");
-    println!(" \x1b[1m\x1b[32m -s\x1b[0m   ,  --start <MONTH> <YEAR>  Start month and year");
-    println!(" \x1b[1m\x1b[32m -f\x1b[0m   ,  --file <PATH>           Path to events file (default: events.txt)");
-    println!(" \x1b[1m\x1b[32m -mon\x1b[0m ,  --monday-first          Week starts on Monday (default)");
-    println!(" \x1b[1m\x1b[32m -sun\x1b[0m ,  --sunday-first          Week starts on Sunday");
-    println!(" \x1b[1m\x1b[32m -c\x1b[0m   ,  --calendar-only         Show only calendar");
-    println!(" \x1b[1m\x1b[32m -e\x1b[0m   ,  --events-only           Show only events");
-    println!(" \x1b[1m\x1b[32m -h\x1b[0m   ,  --help                  Display this help message");
+    println!(" \x1b[1m\x1b[32m -m\x1b[0m   ,  --mont <MONTH>      Start month");
+    println!(" \x1b[1m\x1b[32m -y\x1b[0m   ,  --year <YEAR>       Start year");
+    println!(" \x1b[1m\x1b[32m -n\x1b[0m   ,  --num-months <NUM>  Number of months to display (1-12)");
+    println!(" \x1b[1m\x1b[32m -cols\x1b[0m,  --columns <NUM>     Number of calendar columns per row (default: 3)");
+    println!(" \x1b[1m\x1b[32m -mon\x1b[0m ,  --monday-first      Week starts on Monday (default)");
+    println!(" \x1b[1m\x1b[32m -sun\x1b[0m ,  --sunday-first      Week starts on Sunday");
+    println!(" \x1b[1m\x1b[32m -w\x1b[0m   ,  --weeks [on|off]    Show week numbers (default: on)");
+    println!(" \x1b[1m\x1b[32m -c\x1b[0m   ,  --calendar-only     Show only calendar");
+    println!(" \x1b[1m\x1b[32m -e\x1b[0m   ,  --events-only       Show only events");
+    println!(" \x1b[1m\x1b[32m -f\x1b[0m   ,  --file <PATH>       Path to events file (default: events.txt)");
+    println!(" \x1b[1m\x1b[32m -h\x1b[0m   ,  --help              Display this help message");
 }
 
 /// Helper to parse fixed dates in DD-MM-YYYY or MM/DD/YYYY format.
@@ -248,7 +286,6 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                 let mut base_date: Option<NaiveDate> = None;
                 let mut is_anniversary_rule = false;
 
-                // --- MODIFIED LOGIC START ---
                 // Check for Fixed Date Rule
                 if let Some(date) = parse_fixed_date_rule(rule_part) {
                     base_date = Some(date);
@@ -258,8 +295,8 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                             is_anniversary_rule = true;
                         }
                     }
-                    
-                    // If it's a fixed date rule but NOT an anniversary/bday, 
+
+                    // If it's a fixed date rule but NOT an anniversary/bday,
                     // we only process it for the exact year it specifies.
                     if !is_anniversary_rule {
                         // Check if the fixed year matches the current display range start year
@@ -271,15 +308,13 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                                     category: category.clone(),
                                     fg_color: fg_color.clone(),
                                     bg_color: bg_color.clone(),
-                                    original_year: None, // Not a recurring anniversary, so no original year needed
+                                    original_year: None,
                                  });
                              }
                         }
-                        continue; // Move to the next line in the event file
+                        continue;
                     }
                 }
-                // --- MODIFIED LOGIC END ---
-
 
                 let mut added_years = std::collections::HashSet::new();
 
@@ -289,22 +324,17 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
 
                     if is_anniversary_rule {
                         // Recur the anniversary from the base date
-                        let bd = base_date.unwrap(); // Safe unwrap due to is_anniversary_rule flag
-                        if year >= bd.year() { // Only generate events on or after the base year
-                            // Create a new date for the current year, using the original month and day
+                        let bd = base_date.unwrap();
+                        if year >= bd.year() {
                             date_to_add = NaiveDate::from_ymd_opt(year, bd.month(), bd.day());
                             original_year_to_store = Some(bd.year());
                         }
                     } else if base_date.is_none() {
-                        // Standard eCal rule (E+1, 5/1#1, 7/4) - ONLY if it wasn't a fixed-date rule
+                        // Standard eCal rule (E+1, 5/1#1, 7/4)
                         date_to_add = calculate_date_from_rule(rule_part, year);
                     }
-                    // Note: If base_date was set but is_anniversary_rule is false, we already handled it 
-                    // outside this loop with 'continue'.
 
                     if let Some(date) = date_to_add {
-                        // We check if the date falls within the display range and avoid adding duplicates
-                        // The event is added if it was a fixed-date rule OR if it was calculated for the current year
                         if added_years.insert(date) {
                             events.push(Event {
                                 date,
@@ -312,7 +342,7 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                                 category: category.clone(),
                                 fg_color: fg_color.clone(),
                                 bg_color: bg_color.clone(),
-                                original_year: original_year_to_store, // Will be Some(base_year) for fixed dates, None otherwise
+                                original_year: original_year_to_store,
                             });
                         }
                     }
@@ -340,15 +370,14 @@ fn calculate_date_from_rule(rule: &str, year: i32) -> Option<NaiveDate> {
         let offset = if rule == "E" {
             0
         } else if rule.len() > 1 {
-            // Rule[1..] will be "+1" or "-2" or just "1" or "-2"
             rule[1..].parse::<i64>().ok()?
         } else {
-            return None; // Invalid format like "E" followed by nothing
+            return None;
         };
         return calculate_easter_date(year).map(|date| date + Duration::days(offset));
     }
 
-    // 2. Nth Day of Week rule: MM/DOW#N (5/1#1 -> 1st Monday of May)
+    // 2. Nth Day of Week rule: MM/DOW#N
     if let Some(hash_pos) = rule.find('#') {
         let date_part = &rule[0..hash_pos];
         let n_str = &rule[hash_pos + 1..];
@@ -356,8 +385,6 @@ fn calculate_date_from_rule(rule: &str, year: i32) -> Option<NaiveDate> {
         let mut parts = date_part.split('/');
         let month = parts.next()?.parse::<u32>().ok()?;
         let dow_num = parts.next()?.parse::<u32>().ok()?; // DOW: 1=Mon..0=Sun
-
-        // Convert eCal DOW (1=Mon..0=Sun) to chrono DOW (1=Mon..7=Sun)
         let dow_num = if dow_num == 0 { 7 } else { dow_num };
         let n = n_str.parse::<u32>().ok()?;
 
@@ -369,20 +396,16 @@ fn calculate_date_from_rule(rule: &str, year: i32) -> Option<NaiveDate> {
         let date_part = &rule[0..q_pos];
         let condition_part = &rule[q_pos + 1..];
 
-        // Ensure date_part is MM/DD
         let mut parts = date_part.split('/');
         let month = parts.next()?.parse::<u32>().ok()?;
         let day = parts.next()?.parse::<u32>().ok()?;
-
         let target_date = NaiveDate::from_ymd_opt(year, month, day)?;
 
-        // Ensure condition_part is D[+-]N
         if condition_part.len() >= 3 {
-            let target_dow_num = condition_part.chars().next()?.to_digit(10)?; // D (0-6)
-            let operator = condition_part.chars().nth(1)?; // + or -
+            let target_dow_num = condition_part.chars().next()?.to_digit(10)?;
+            let operator = condition_part.chars().nth(1)?;
             let offset = condition_part[2..].parse::<i64>().ok()?;
 
-            // Convert eCal DOW (0=Sun..6=Sat) to chrono Weekday
             let target_weekday = match target_dow_num {
                 0 => Weekday::Sun,
                 1 => Weekday::Mon,
@@ -394,7 +417,6 @@ fn calculate_date_from_rule(rule: &str, year: i32) -> Option<NaiveDate> {
                 _ => return None,
             };
 
-            // Check if the target_date's weekday matches the condition
             if target_date.weekday() == target_weekday {
                 let duration = Duration::days(offset);
                 let final_offset = match operator {
@@ -405,34 +427,26 @@ fn calculate_date_from_rule(rule: &str, year: i32) -> Option<NaiveDate> {
                 return Some(target_date + final_offset);
             }
         }
-
-        // Handle MM/DD? and MM/DD?YYYY rules here.
         if condition_part.is_empty() || condition_part.chars().all(|c| c.is_digit(10)) {
-            // For MM/DD? (which is identical to MM/DD annual rule if no D[+-]N is present)
-            // and MM/DD?YYYY (which is not fully implemented but should fallback to MM/DD if no explicit year is used)
              return Some(target_date);
         }
-
-        return None; // Condition not met for this rule, no event generated
+        return None;
     }
 
-    // 4. Annual rule (MM/DD): Check for current processing year
+    // 4. Annual rule (MM/DD)
     if rule.contains('/') && rule.chars().filter(|c| *c == '/').count() == 1 {
         let mut parts = rule.split('/');
         let month = parts.next()?.parse::<u32>().ok()?;
         let day = parts.next()?.parse::<u32>().ok()?;
-
         return NaiveDate::from_ymd_opt(year, month, day);
     }
-
-    // 5. Fixed Date Rule: This is now handled by parse_fixed_date_rule in load_events.
 
     None
 }
 
 /// Calculates the date of Easter Sunday for a given year using the Gauss algorithm.
 fn calculate_easter_date(year: i32) -> Option<NaiveDate> {
-    if year < 1583 { return None; } // Algorithm is valid for years after 1583
+    if year < 1583 { return None; }
 
     let a = year % 19;
     let b = year / 100;
@@ -482,15 +496,10 @@ fn find_nth_dow(year: i32, month: u32, dow_num: u32, n: u32) -> Option<NaiveDate
     if current_date.month() == month {
         current_date += Duration::weeks((n - 1) as i64);
 
-        // --- Logic for Nth occurrence when n=5 means "Last" and the 5th doesn't exist ---
-        // If we jumped past the current month and n was 5,
-        // it means the previous week was the 4th/Last occurrence.
         if n == 5 && current_date.month() != month {
             current_date -= Duration::weeks(1);
         }
-        // -------------------------------------------------------------------------------
 
-        // Final check to ensure we didn't jump into the next month (for n<5, or n=5 corrected)
         if current_date.month() == month {
             return Some(current_date);
         }
@@ -500,7 +509,6 @@ fn find_nth_dow(year: i32, month: u32, dow_num: u32, n: u32) -> Option<NaiveDate
 }
 
 fn display_calendars(config: &Config, events: &Vec<Event>) {
-    // UPDATED: Use config.num_columns instead of fixed 3
     let months_per_row = if config.num_months == 1 {
         1
     } else {
@@ -508,7 +516,7 @@ fn display_calendars(config: &Config, events: &Vec<Event>) {
     };
 
     if months_per_row == 0 {
-        return; // Avoid division by zero if somehow num_columns is 0
+        return;
     }
 
     let num_rows = (config.num_months + months_per_row - 1) / months_per_row;
@@ -529,8 +537,6 @@ fn display_month_row(config: &Config, events: &Vec<Event>, start_idx: usize, end
 
     for idx in start_idx..end_idx {
         let months_offset = idx as i32;
-
-        // Calculate the target year and month, handling overflow/underflow
         let total_months_from_epoch = config.start_year as i64 * 12 + config.start_month as i64 + months_offset as i64 - 1;
         let year = (total_months_from_epoch / 12) as i32;
         let month = (total_months_from_epoch % 12 + 1) as u32;
@@ -538,12 +544,20 @@ fn display_month_row(config: &Config, events: &Vec<Event>, start_idx: usize, end
         dates.push(NaiveDate::from_ymd_opt(year, month, 1).unwrap());
     }
 
-    // Print month headers (centered over 24 character width)
+    // Calculate dynamic width based on whether week numbers are shown
+    // With weeks: 24 chars ("Wk " + 21 chars for days)
+    // Without weeks: 21 chars (Just days)
+    let calendar_width = if config.show_week_numbers { 24 } else { 21 };
+
+    // Print month headers (centered over calculated width)
     for (idx, date) in dates.iter().enumerate() {
         let month_name_str = format!("{} {}", month_name(date.month()), date.year());
-        let padding = (24 - month_name_str.len()) / 2;
+        let padding = (calendar_width - month_name_str.len()) / 2;
         print!("{}\x1b[1m{}\x1b[0m", " ".repeat(padding), month_name_str);
-        print!("{}", " ".repeat(24 - padding - month_name_str.len()));
+        // Ensure the padding is correct to match calendar_width exactly
+        let r_padding = calendar_width - padding - month_name_str.len();
+        print!("{}", " ".repeat(r_padding));
+        
         if idx < dates.len() - 1 {
             print!("    ");
         }
@@ -552,7 +566,7 @@ fn display_month_row(config: &Config, events: &Vec<Event>, start_idx: usize, end
 
     // Print weekday headers
     for idx in 0..dates.len() {
-        print_weekday_header(config.monday_first);
+        print_weekday_header(config);
         if idx < dates.len() - 1 {
             print!("     ");
         }
@@ -560,21 +574,19 @@ fn display_month_row(config: &Config, events: &Vec<Event>, start_idx: usize, end
     println!();
 
     // Print calendar days
-    // Get max weeks to align rows across multiple months
     let max_weeks = dates.iter().map(|d| weeks_in_month(*d, config.monday_first)).max().unwrap_or(6);
 
     for week in 0..max_weeks {
-        // Check if the current week row across all months is entirely empty (no valid dates)
+        // Check if the current week row across all months is entirely empty
         let is_empty_row = dates.iter().all(|&date| {
             let week_start_day = get_week_start_day(date, week, config.monday_first);
             let days_in_month = days_in_month(date.year(), date.month());
             week_start_day > days_in_month as i32 || week_start_day + 6 < 1
         });
 
-        // Only print the row if it contains at least one day from any displayed month
         if !is_empty_row {
             for (idx, date) in dates.iter().enumerate() {
-                print_week_row(*date, week, config.monday_first, events);
+                print_week_row(*date, week, config, events);
                 if idx < dates.len() - 1 {
                     print!("    ");
                 }
@@ -598,33 +610,38 @@ fn get_week_start_day(month_start: NaiveDate, week_num: usize, monday_first: boo
     start_day_offset - offset as i32 + 1
 }
 
-fn print_weekday_header(monday_first: bool) {
-    // ANSI color codes: [34m=Blue (Week Num), [31m=Red (Weekend), [1m=Bold
-    if monday_first {
-        print!("\x1b[34mWk\x1b[0m Mo Tu We Th Fr \x1b[31mSa Su\x1b[0m");
+fn print_weekday_header(config: &Config) {
+    if config.show_week_numbers {
+        if config.monday_first {
+            print!("\x1b[34mWk\x1b[0m Mo Tu We Th Fr \x1b[31mSa Su\x1b[0m");
+        } else {
+            print!("\x1b[34mWk\x1b[0m \x1b[31mSu\x1b[0m Mo Tu We Th Fr \x1b[31mSa\x1b[0m");
+        }
     } else {
-        print!("\x1b[34mWk\x1b[0m \x1b[31mSu\x1b[0m Mo Tu We Th Fr \x1b[31mSa\x1b[0m");
+        if config.monday_first {
+            print!("Mo Tu We Th Fr \x1b[31mSa Su\x1b[0m");
+        } else {
+            print!("\x1b[31mSu\x1b[0m Mo Tu We Th Fr \x1b[31mSa\x1b[0m");
+        }
     }
 }
 
-fn print_week_row(month_start: NaiveDate, week_num: usize, monday_first: bool, events: &Vec<Event>) {
+fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, events: &Vec<Event>) {
     let days_in_month = days_in_month(month_start.year(), month_start.month());
-
-    // Calculate the actual day number of the month for the start of this week row
-    let start_day = get_week_start_day(month_start, week_num, monday_first);
-
+    let start_day = get_week_start_day(month_start, week_num, config.monday_first);
     let today = chrono::Local::now().naive_local().date();
 
-    // Calculate week number for the start of the week. Only print if the week contains a day from this month.
-    let print_week_num = start_day <= days_in_month as i32 && start_day + 6 >= 1;
-    if print_week_num {
-        let week_date = month_start + Duration::days((start_day - 1) as i64).max(Duration::days(0));
-        let iso_week = week_date.iso_week().week();
-        print!("\x1b[34m{:2}\x1b[0m ", iso_week);
-    } else {
-        print!("   "); // Empty space for week number column
+    // Only print week number column if enabled
+    if config.show_week_numbers {
+        let print_week_num = start_day <= days_in_month as i32 && start_day + 6 >= 1;
+        if print_week_num {
+            let week_date = month_start + Duration::days((start_day - 1) as i64).max(Duration::days(0));
+            let iso_week = week_date.iso_week().week();
+            print!("\x1b[34m{:2}\x1b[0m ", iso_week);
+        } else {
+            print!("   "); // Empty space for week number column
+        }
     }
-
 
     for day_offset in 0..7 {
         let day = start_day + day_offset;
@@ -638,12 +655,9 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, monday_first: bool, e
 
             let event_for_day = events.iter().find(|e| e.date == current_date);
             let is_today = current_date == today;
-
             let chrono_weekday = current_date.weekday();
             let is_weekend = chrono_weekday == Weekday::Sat || chrono_weekday == Weekday::Sun;
-            // --------------------------------------------------------------------
 
-            // Get custom color codes
             let (fg_code, bg_code, has_custom_color) = if let Some(event) = event_for_day {
                 let fg = event.fg_color.as_ref().and_then(|c| get_ansi_color_code(c, true)).unwrap_or("");
                 let bg = event.bg_color.as_ref().and_then(|c| get_ansi_color_code(c, false)).unwrap_or("");
@@ -652,42 +666,31 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, monday_first: bool, e
                 ("", "", false)
             };
 
-            // Reset code constant
             const BOLD_CODE: &str = "\x1b[1m";
             const RESET_CODE: &str = "\x1b[0m";
 
-            // Start with base formatting (for weekends)
             let mut format_codes = String::new();
 
-            // 1. Weekend Formatting (Base Red FG)
             if is_weekend {
                 format_codes.push_str("\x1b[31m");
-                // If there is an event on weekend, just make it red and bold
                 if event_for_day.is_some() {
                     format_codes.push_str(BOLD_CODE);
                 }
             }
 
-            // 2. Event Formatting: Overrides or adds to base formatting
             if event_for_day.is_some() && !is_weekend {
-                // If custom colors are used, they take priority
                 if has_custom_color {
-                    // Custom BG and FG codes are applied directly
-                    // Note: We don't remove the weekend red, we just let the custom FG override it if defined.
-                    format_codes.push_str(bg_code); // Custom BG
-                    format_codes.push_str(fg_code); // Custom FG
+                    format_codes.push_str(bg_code);
+                    format_codes.push_str(fg_code);
                     format_codes.push_str(BOLD_CODE);
                 } else {
-                    // Default event highlight: Inverted background (if no custom BG is set)
                     if bg_code.is_empty() {
-                         format_codes.push_str("\x1b[7m"); // Invert background
+                         format_codes.push_str("\x1b[7m");
                     }
                 }
             }
 
-            // 3. Today Formatting: Highest priority, must apply over everything else
             if is_today {
-                // Clear existing codes, apply today colors (Default Yellow BG, Black FG)
                 format_codes.clear();
                 let final_bg = if bg_code.is_empty() { "\x1b[43m" } else { bg_code };
                 let final_fg = if fg_code.is_empty() { "\x1b[30m" } else { fg_code };
@@ -695,18 +698,15 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, monday_first: bool, e
                 format_codes.push_str(final_fg);
             }
 
-            // Print the day with the combined formatting
             print!("{}{:2}{} ", format_codes, day, RESET_CODE)
 
         } else {
-            // Days outside of the current month
             print!("   ");
         }
     }
 }
 
 /// Returns the correct ordinal suffix (st, nd, rd, th) for a number.
-/// Only handles positive integers.
 fn get_ordinal_suffix(n: i32) -> &'static str {
     if n % 100 >= 11 && n % 100 <= 13 {
         "th"
@@ -722,24 +722,20 @@ fn get_ordinal_suffix(n: i32) -> &'static str {
 
 
 fn display_events_list(config: &Config, events: &Vec<Event>) {
-    // Get today's date for relative calculation
     let today = chrono::Local::now().naive_local().date();
 
-    // Calculate start date
     let start_date = NaiveDate::from_ymd_opt(
         config.start_year,
         config.start_month,
         1,
     ).unwrap();
 
-    // Calculate end date (exclusive)
     let total_months_from_epoch = config.start_year as i64 * 12 + config.start_month as i64 + config.num_months as i64;
     let end_year = ((total_months_from_epoch - 1) / 12) as i32;
     let end_month = ((total_months_from_epoch - 1) % 12 + 1) as u32;
 
     let end_date = NaiveDate::from_ymd_opt(end_year, end_month, 1).unwrap();
 
-    // Filter events that fall within the display range
     let filtered_events: Vec<&Event> = events
         .iter()
         .filter(|e| e.date >= start_date && e.date < end_date)
@@ -750,7 +746,6 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
     }
 
 
-    // ANSI color codes
     const BOLD_CODE: &str = "\x1b[1m";
     const RESET_CODE: &str = "\x1b[0m";
 
@@ -759,12 +754,8 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
 
 
     for event in filtered_events {
-
-        // Determine formatting codes
         let mut prefix_code = String::new();
 
-
-        // For non-weekend events, check for custom colors (FG/BG)
         let fg_code = event.fg_color.as_ref().and_then(|c| get_ansi_color_code(c, true)).unwrap_or("");
         let bg_code = event.bg_color.as_ref().and_then(|c| get_ansi_color_code(c, false)).unwrap_or("");
         prefix_code.push_str(bg_code);
@@ -772,20 +763,18 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
 
         let mut full_description = event.description.clone();
 
-        // --- 1. ANNIVERSARY/BIRTHDAY CALCULATION ---
         if let Some(original_year) = event.original_year {
             if let Some(cat) = &event.category {
                 let (label, qualifies) = match cat.as_str() {
                     "bday" => ("Birthday", true),
                     "anni" => ("Anniversary", true),
-                    _ => ("", false), // Only process if category is bday or anni
+                    _ => ("", false),
                 };
 
                 if qualifies {
                     let anniversary_num = event.date.year() - original_year;
                     if anniversary_num > 0 {
                         let suffix = get_ordinal_suffix(anniversary_num);
-                        // Format: (1st Birthday), (10th Anniversary)
                         let calculated_suffix = format!(" ({}{suffix} {label})", anniversary_num);
                         full_description.push_str(&calculated_suffix);
                     }
@@ -793,25 +782,18 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
             }
         }
 
-        // --- 2. RELATIVE DAY CALCULATION ---
-        // Calculate the number of days difference from today
         let days_diff = event.date.signed_duration_since(today).num_days();
 
         let relative_days_label = if days_diff == 0 {
-            // Event is today
             String::new()
         } else if days_diff > 0 {
-            // Event is in the future
             format!(" \x1b[32m(In {}{}{}\x1b[32m days){}", BOLD_CODE, days_diff, RESET_CODE, RESET_CODE)
         } else {
-            // Event is in the past (use absolute value of difference)
             format!(" \x1b[34m({}{}{}\x1b[34m days ago){}", BOLD_CODE, days_diff.abs(), RESET_CODE, RESET_CODE)
         };
 
-        // Append relative days to the description
         full_description.push_str(&relative_days_label);
 
-        // Output format: Day, DD Mon YYYY - [Formatting Codes]Description[Reset]
         println!("{}{}{} - {}",
             prefix_code,
             event.date.format("%a, %d %b %Y"),
