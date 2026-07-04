@@ -127,20 +127,21 @@ fn main() {
 }
 
 fn print_help() {
+    println!("");
     println!("Calendar with Events");
     println!("----------------------------------------------------------------------------------");
-    println!("\x1b[1mUsage: ecal [OPTIONS]\x1b[0m");
-    println!(" \x1b[1m\x1b[32m -m\x1b[0m    | --month         <MONTH>  Start month");
-    println!(" \x1b[1m\x1b[32m -y\x1b[0m    | --year          <YEAR>   Start year");
-    println!(" \x1b[1m\x1b[32m -n\x1b[0m    | --num-months    <NUM>    Number of months to display (1-12)");
-    println!(" \x1b[1m\x1b[32m -cols\x1b[0m | --columns       <NUM>    Number of calendar columns per row (default: 3)");
-    println!(" \x1b[1m\x1b[32m -mon\x1b[0m  | --monday-first           Week starts on Monday (default)");
-    println!(" \x1b[1m\x1b[32m -sun\x1b[0m  | --sunday-first           Week starts on Sunday");
-    println!(" \x1b[1m\x1b[32m -w\x1b[0m    | --weeks         [on|off] Show week numbers (default: on)");
-    println!(" \x1b[1m\x1b[32m -c\x1b[0m    | --calendar-only          Show only calendar");
-    println!(" \x1b[1m\x1b[32m -e\x1b[0m    | --events-only            Show only events");
-    println!(" \x1b[1m\x1b[32m -f\x1b[0m    | --file          <PATH>   Path to events file (default: events.txt)");
-    println!(" \x1b[1m\x1b[32m -h\x1b[0m    | --help                   Display this help message");
+    println!("\x1b[1m\x1b[33mUsage: ecal [OPTIONS]\x1b[0m");
+    println!(" \x1b[1m\x1b[34m -m\x1b[0m    | \x1b[34m--month        \x1b[0m \x1b[32m<MONTH>\x1b[0m  Start month");
+    println!(" \x1b[1m\x1b[34m -y\x1b[0m    | \x1b[34m--year         \x1b[0m \x1b[32m<YEAR>\x1b[0m   Start year");
+    println!(" \x1b[1m\x1b[34m -n\x1b[0m    | \x1b[34m--num-months   \x1b[0m \x1b[32m<NUM>\x1b[0m    Number of months to display (1-12)");
+    println!(" \x1b[1m\x1b[34m -cols\x1b[0m | \x1b[34m--columns      \x1b[0m \x1b[32m<NUM>\x1b[0m    Number of calendar columns per row (default: 3)");
+    println!(" \x1b[1m\x1b[34m -mon\x1b[0m  | \x1b[34m--monday-first \x1b[0m          Week starts on Monday (default)");
+    println!(" \x1b[1m\x1b[34m -sun\x1b[0m  | \x1b[34m--sunday-first \x1b[0m          Week starts on Sunday");
+    println!(" \x1b[1m\x1b[34m -w\x1b[0m    | \x1b[34m--weeks        \x1b[0m \x1b[32m[on|off]\x1b[0m Show week numbers (default: on)");
+    println!(" \x1b[1m\x1b[34m -c\x1b[0m    | \x1b[34m--calendar-only\x1b[0m          Show only calendar");
+    println!(" \x1b[1m\x1b[34m -e\x1b[0m    | \x1b[34m--events-only  \x1b[0m          Show only events");
+    println!(" \x1b[1m\x1b[34m -f\x1b[0m    | \x1b[34m--file         \x1b[0m \x1b[32m<PATH>\x1b[0m   Path to events file (default: events.txt)");
+    println!(" \x1b[1m\x1b[34m -h\x1b[0m    | \x1b[34m--help         \x1b[0m          Display this help message");
 }
 
 fn parse_fixed_date_rule(rule: &str) -> Option<NaiveDate> {
