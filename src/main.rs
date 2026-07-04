@@ -181,7 +181,7 @@ fn print_help() {
     println!("Calendar with Events");
     println!("----------------------------------------------------------------------------------");
     println!("\x1b[1mUsage: ecal [OPTIONS]\x1b[0m");
-    println!(" \x1b[1m\x1b[32m -m\x1b[0m   ,  --mont <MONTH>      Start month");
+    println!(" \x1b[1m\x1b[32m -m\x1b[0m   ,  --month <MONTH>      Start month");
     println!(" \x1b[1m\x1b[32m -y\x1b[0m   ,  --year <YEAR>       Start year");
     println!(" \x1b[1m\x1b[32m -n\x1b[0m   ,  --num-months <NUM>  Number of months to display (1-12)");
     println!(" \x1b[1m\x1b[32m -cols\x1b[0m,  --columns <NUM>     Number of calendar columns per row (default: 3)");
@@ -693,7 +693,7 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, even
             if is_today {
                 format_codes.clear();
                 let final_bg = if bg_code.is_empty() { "\x1b[43m" } else { bg_code };
-                let final_fg = if fg_code.is_empty() { "\x1b[30m" } else { fg_code };
+                let final_fg = if fg_code.is_empty() { "\x1b[30m" } else { "\x1b[1m\x1b[30m" };
                 format_codes.push_str(final_bg);
                 format_codes.push_str(final_fg);
             }
@@ -785,7 +785,8 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
         let days_diff = event.date.signed_duration_since(today).num_days();
 
         let relative_days_label = if days_diff == 0 {
-            String::new()
+            // String::new()
+            format!(" \x1b[1m\x1b[33m(Today 📌){}", RESET_CODE)
         } else if days_diff > 0 {
             format!(" \x1b[32m(In {}{}{}\x1b[32m days){}", BOLD_CODE, days_diff, RESET_CODE, RESET_CODE)
         } else {
