@@ -1,5 +1,4 @@
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
-use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufRead};
 
@@ -44,23 +43,23 @@ impl Default for Config {
 fn main() {
     let mut config = Config::default();
     let mut events_file = String::from("events.txt");
-    let args: Vec<String> = std::env::args().collect();
 
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
+    // FIX: Make the iterator peekable so we can check the next arg without consuming it
+    let mut args = std::env::args().skip(1).peekable();
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
             "-n" | "--num-months" => {
-                if i + 1 < args.len() {
-                    config.num_months = args[i + 1].parse().unwrap_or_else(|_| {
+                if let Some(val) = args.next() {
+                    config.num_months = val.parse().unwrap_or_else(|_| {
                         eprintln!("Warning: Invalid number of months provided. Using 1.");
                         1
                     });
-                    i += 2;
-                } else { i += 1; }
+                }
             }
             "-m" | "--month" => {
-                if i + 1 < args.len() {
-                    config.start_month = args[i + 1].parse().unwrap_or_else(|_| {
+                if let Some(val) = args.next() {
+                    config.start_month = val.parse().unwrap_or_else(|_| {
                         eprintln!("Warning: Invalid month provided. Using current month.");
                         chrono::Local::now().naive_local().date().month()
                     });
@@ -68,58 +67,58 @@ fn main() {
                         eprintln!("Warning: Month must be between 1 and 12. Using current month.");
                         config.start_month = chrono::Local::now().naive_local().date().month();
                     }
-                    i += 2;
-                } else { i += 1; }
+                }
             }
             "-y" | "--year" => {
-                if i + 1 < args.len() {
-                    config.start_year = args[i + 1].parse().unwrap_or_else(|_| {
+                if let Some(val) = args.next() {
+                    config.start_year = val.parse().unwrap_or_else(|_| {
                         eprintln!("Warning: Invalid year provided. Using current year.");
                         chrono::Local::now().naive_local().date().year()
                     });
-                    i += 2;
-                } else { i += 1; }
+                }
             }
             "-cols" | "--columns" => {
-                if i + 1 < args.len() {
-                    config.num_columns = args[i + 1].parse().unwrap_or(3).max(1);
-                    i += 2;
-                } else { i += 1; }
+                if let Some(val) = args.next() {
+                    config.num_columns = val.parse().unwrap_or(3).max(1);
+                }
             }
             "-f" | "--file" => {
-                if i + 1 < args.len() {
-                    events_file = args[i + 1].clone();
-                    i += 2;
-                } else { i += 1; }
+                if let Some(val) = args.next() {
+                    events_file = val;
+                }
             }
-            "-sun" | "--sunday-first" => { config.monday_first = false; i += 1; }
-            "-mon" | "--monday-first" => { config.monday_first = true; i += 1; }
-            "-c" | "--calendar-only" => { config.show_calendar = true; config.show_events = false; i += 1; }
-            "-e" | "--events-only" => { config.show_calendar = false; config.show_events = true; i += 1; }
+            "-sun" | "--sunday-first" => config.monday_first = false,
+            "-mon" | "--monday-first" => config.monday_first = true,
+            "-c" | "--calendar-only" => { config.show_calendar = true; config.show_events = false; }
+            "-e" | "--events-only" => { config.show_calendar = false; config.show_events = true; }
             "-w" | "--weeks" => {
-                if i + 1 < args.len() {
-                    match args[i + 1].to_lowercase().as_str() {
-                        "off" | "false" | "0" | "no" => { config.show_week_numbers = false; i += 2; }
-                        "on" | "true" | "1" | "yes" => { config.show_week_numbers = true; i += 2; }
-                        _ => { config.show_week_numbers = true; i += 1; }
+                // Peek at the next argument to see if it's a value or another flag
+                if let Some(next_arg) = args.peek() {
+                    if next_arg.starts_with('-') {
+                        // The next arg is a flag (e.g., -w -m 5), so just enable weeks
+                        config.show_week_numbers = true;
+                    } else {
+                        // The next arg is a value (e.g., -w off)
+                        let val = args.next().unwrap(); // Safe because peek() returned Some
+                        config.show_week_numbers = matches!(
+                            val.to_lowercase().as_str(),
+                                                            "on" | "true" | "1" | "yes"
+                        );
                     }
-                } else { config.show_week_numbers = true; i += 1; }
+                } else {
+                    // End of arguments (e.g., ecal -w), just enable weeks
+                    config.show_week_numbers = true;
+                }
             }
             "-h" | "--help" => { print_help(); return; }
-            _ => { i += 1; }
+            _ => {}
         }
     }
 
     let events = load_events(&events_file, &config);
 
-    // OPTIMIZATION: Build a HashMap for O(1) event lookups during calendar rendering
-    let mut event_map: HashMap<NaiveDate, &Event> = HashMap::new();
-    for e in events.iter() {
-        event_map.entry(e.date).or_insert(e); // Keeps the first event if multiple exist on the same day
-    }
-
     if config.show_calendar {
-        display_calendars(&config, &event_map);
+        display_calendars(&config, &events);
     }
     if config.show_events {
         display_events_list(&config, &events);
@@ -127,8 +126,7 @@ fn main() {
 }
 
 fn print_help() {
-    println!("");
-    println!("Calendar with Events");
+    println!("\nCalendar with Events");
     println!("----------------------------------------------------------------------------------");
     println!("\x1b[1m\x1b[33mUsage: ecal [OPTIONS]\x1b[0m");
     println!(" \x1b[1m\x1b[34m -m\x1b[0m    | \x1b[34m--month        \x1b[0m \x1b[32m<MONTH>\x1b[0m  Start month");
@@ -157,12 +155,19 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
     let end_year_check = ((total_months_from_epoch - 1) / 12) as i32;
 
     if let Ok(file) = fs::File::open(filename) {
-        let reader = io::BufReader::new(file);
-        for line in reader.lines().map_while(Result::ok) {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') { continue; }
+        let mut reader = io::BufReader::new(file);
 
-            let parts: Vec<&str> = line.splitn(2, ';').collect();
+        let mut line = String::new();
+        while let Ok(bytes_read) = reader.read_line(&mut line) {
+            if bytes_read == 0 { break; } // EOF
+
+            let trimmed_line = line.trim();
+            if trimmed_line.is_empty() || trimmed_line.starts_with('#') {
+                line.clear();
+                continue;
+            }
+
+            let parts: Vec<&str> = trimmed_line.splitn(2, ';').collect();
             let rule_part = parts[0].trim();
             let mut category: Option<String> = None;
             let mut fg_color: Option<String> = None;
@@ -202,6 +207,7 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                             events.push(Event { date: d, description: description_text.clone(), category: category.clone(), fg_color: fg_color.clone(), bg_color: bg_color.clone(), original_year: None });
                         }
                     }
+                    line.clear();
                     continue;
                 }
             }
@@ -227,6 +233,8 @@ fn load_events(filename: &str, config: &Config) -> Vec<Event> {
                     }
                 }
             }
+
+            line.clear();
         }
     } else {
         eprintln!("Info: Event file '{}' not found. Continuing without events.", filename);
@@ -313,24 +321,24 @@ fn find_nth_dow(year: i32, month: u32, dow_num: u32, n: u32) -> Option<NaiveDate
     None
 }
 
-fn display_calendars(config: &Config, event_map: &HashMap<NaiveDate, &Event>) {
+fn display_calendars(config: &Config, events: &[Event]) {
     let months_per_row = if config.num_months == 1 { 1 } else { config.num_columns.max(1) };
     let num_rows = (config.num_months + months_per_row - 1) / months_per_row;
     for row in 0..num_rows {
         let start_idx = row * months_per_row;
         let end_idx = std::cmp::min(start_idx + months_per_row, config.num_months);
-        display_month_row(config, event_map, start_idx, end_idx);
+        display_month_row(config, events, start_idx, end_idx);
         if row < num_rows - 1 { println!(); }
     }
 }
 
-fn display_month_row(config: &Config, event_map: &HashMap<NaiveDate, &Event>, start_idx: usize, end_idx: usize) {
+fn display_month_row(config: &Config, events: &[Event], start_idx: usize, end_idx: usize) {
     let mut dates = Vec::new();
     for idx in start_idx..end_idx {
         let total_months_from_epoch = config.start_year as i64 * 12 + config.start_month as i64 + idx as i64 - 1;
         let year = (total_months_from_epoch / 12) as i32;
         let month = (total_months_from_epoch % 12 + 1) as u32;
-        dates.push(NaiveDate::from_ymd_opt(year, month, 1).unwrap());
+        dates.push(NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_else(|| chrono::Local::now().naive_local().date()));
     }
 
     let calendar_width = if config.show_week_numbers { 24 } else { 21 };
@@ -339,7 +347,7 @@ fn display_month_row(config: &Config, event_map: &HashMap<NaiveDate, &Event>, st
         let month_name_str = format!("{} {}", month_name(date.month()), date.year());
         let padding = (calendar_width - month_name_str.len()) / 2;
         print!("{}\x1b[1m{}\x1b[0m", " ".repeat(padding), month_name_str);
-        print!("{}", " ".repeat(calendar_width - padding - month_name_str.len()));
+        print!("{}", " ".repeat(calendar_width.saturating_sub(padding).saturating_sub(month_name_str.len())));
         if idx < dates.len() - 1 { print!("    "); }
     }
     println!();
@@ -359,7 +367,7 @@ fn display_month_row(config: &Config, event_map: &HashMap<NaiveDate, &Event>, st
         });
         if !is_empty_row {
             for (idx, date) in dates.iter().enumerate() {
-                print_week_row(*date, week, config, event_map);
+                print_week_row(*date, week, config, events);
                 if idx < dates.len() - 1 { print!("    "); }
             }
             println!();
@@ -387,7 +395,7 @@ fn print_weekday_header(config: &Config) {
     }
 }
 
-fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, event_map: &HashMap<NaiveDate, &Event>) {
+fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, events: &[Event]) {
     let days_in_month = days_in_month(month_start.year(), month_start.month());
     let start_day = get_week_start_day(month_start, week_num, config.monday_first);
     let today = chrono::Local::now().naive_local().date();
@@ -404,31 +412,53 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, even
     for day_offset in 0..7 {
         let day = start_day + day_offset;
         if day > 0 && day <= days_in_month as i32 {
-            let current_date = NaiveDate::from_ymd_opt(month_start.year(), month_start.month(), day as u32).unwrap();
-            let event_for_day = event_map.get(&current_date);
-            let is_today = current_date == today;
-            let is_weekend = matches!(current_date.weekday(), Weekday::Sat | Weekday::Sun);
+            if let Some(current_date) = NaiveDate::from_ymd_opt(month_start.year(), month_start.month(), day as u32) {
+                let event_for_day = events
+                .binary_search_by_key(&current_date, |e| e.date)
+                .ok()
+                .map(|idx| &events[idx]);
 
-            // OPTIMIZATION: Use a pre-allocated Vec to avoid String heap allocations in the inner loop
-            let mut styles = Vec::with_capacity(4);
+                let is_today = current_date == today;
+                let is_weekend = matches!(current_date.weekday(), Weekday::Sat | Weekday::Sun);
 
-            if is_today {
-                let bg = event_for_day.and_then(|e| e.bg_color.as_ref()).and_then(|c| get_ansi_color_code(c, false)).unwrap_or("\x1b[43m");
-                styles.push(bg);
-                styles.push("\x1b[1m"); // Bold
-                styles.push("\x1b[30m"); // Black text
-            } else if is_weekend {
-                styles.push("\x1b[31m"); // Red for weekends
-                if event_for_day.is_some() { styles.push("\x1b[1m"); }
-            } else if let Some(event) = event_for_day {
-                if let Some(fg) = event.fg_color.as_ref().and_then(|c| get_ansi_color_code(c, true)) { styles.push(fg); }
-                if let Some(bg) = event.bg_color.as_ref().and_then(|c| get_ansi_color_code(c, false)) { styles.push(bg); }
-                else { styles.push("\x1b[7m"); } // Inverse video fallback
-                styles.push("\x1b[1m"); // Bold for events
+                let mut styles = [""; 4];
+                let mut style_len = 0;
+
+                if is_today {
+                    styles[style_len] = event_for_day.and_then(|e| e.bg_color.as_ref()).and_then(|c| get_ansi_color_code(c, false)).unwrap_or("\x1b[43m");
+                    style_len += 1;
+                    styles[style_len] = "\x1b[1m"; // Bold
+                    style_len += 1;
+                    styles[style_len] = "\x1b[30m"; // Black text
+                    style_len += 1;
+                } else if is_weekend {
+                    styles[style_len] = "\x1b[31m"; // Red for weekends
+                    style_len += 1;
+                    if event_for_day.is_some() {
+                        styles[style_len] = "\x1b[1m";
+                        style_len += 1;
+                    }
+                } else if let Some(event) = event_for_day {
+                    if let Some(fg) = event.fg_color.as_ref().and_then(|c| get_ansi_color_code(c, true)) {
+                        styles[style_len] = fg;
+                        style_len += 1;
+                    }
+                    if let Some(bg) = event.bg_color.as_ref().and_then(|c| get_ansi_color_code(c, false)) {
+                        styles[style_len] = bg;
+                        style_len += 1;
+                    } else {
+                        styles[style_len] = "\x1b[7m"; // Inverse video fallback
+                        style_len += 1;
+                    }
+                    styles[style_len] = "\x1b[1m"; // Bold for events
+                    style_len += 1;
+                }
+
+                for i in 0..style_len { print!("{}", styles[i]); }
+                print!("{:2}\x1b[0m ", day);
+            } else {
+                print!("   ");
             }
-
-            for style in styles { print!("{}", style); }
-            print!("{:2}\x1b[0m ", day);
         } else {
             print!("   ");
         }
@@ -436,7 +466,7 @@ fn print_week_row(month_start: NaiveDate, week_num: usize, config: &Config, even
 }
 
 fn get_ordinal_suffix(n: i32) -> &'static str {
-    if n % 100 >= 11 && n % 100 <= 13 { "th" }
+    if (11..=13).contains(&(n % 100)) { "th" }
     else {
         match n % 10 {
             1 => "st", 2 => "nd", 3 => "rd", _ => "th",
@@ -444,13 +474,14 @@ fn get_ordinal_suffix(n: i32) -> &'static str {
     }
 }
 
-fn display_events_list(config: &Config, events: &Vec<Event>) {
+fn display_events_list(config: &Config, events: &[Event]) {
     let today = chrono::Local::now().naive_local().date();
-    let start_date = NaiveDate::from_ymd_opt(config.start_year, config.start_month, 1).unwrap();
+
+    let start_date = NaiveDate::from_ymd_opt(config.start_year, config.start_month, 1).unwrap_or(today);
     let total_months_from_epoch = config.start_year as i64 * 12 + config.start_month as i64 + config.num_months as i64;
     let end_year = ((total_months_from_epoch - 1) / 12) as i32;
     let end_month = ((total_months_from_epoch - 1) % 12 + 1) as u32;
-    let end_date = NaiveDate::from_ymd_opt(end_year, end_month, 1).unwrap();
+    let end_date = NaiveDate::from_ymd_opt(end_year, end_month, 1).unwrap_or(today);
 
     let filtered_events: Vec<&Event> = events.iter().filter(|e| e.date >= start_date && e.date < end_date).collect();
     if filtered_events.is_empty() { return; }
@@ -481,7 +512,7 @@ fn display_events_list(config: &Config, events: &Vec<Event>) {
 
         let days_diff = event.date.signed_duration_since(today).num_days();
         let relative_days_label = if days_diff == 0 {
-            format!(" \x1b[1m\x1b[33m(Today 📌)\x1b[0m")
+            " \x1b[1m\x1b[33m(Today 📌)\x1b[0m".to_string()
         } else if days_diff > 0 {
             format!(" \x1b[32m(In \x1b[1m{}\x1b[0m\x1b[32m days)\x1b[0m", days_diff)
         } else {
@@ -516,10 +547,15 @@ fn month_name(month: u32) -> &'static str {
 }
 
 fn days_in_month(year: i32, month: u32) -> u32 {
-    NaiveDate::from_ymd_opt(if month == 12 { year + 1 } else { year }, if month == 12 { 1 } else { month + 1 }, 1)
-    .unwrap()
-    .signed_duration_since(NaiveDate::from_ymd_opt(year, month, 1).unwrap())
-    .num_days() as u32
+    let current_month_start = NaiveDate::from_ymd_opt(year, month, 1)
+    .unwrap_or_else(|| chrono::Local::now().naive_local().date());
+    let next_month_start = NaiveDate::from_ymd_opt(
+        if month == 12 { year + 1 } else { year },
+            if month == 12 { 1 } else { month + 1 },
+                1,
+    ).unwrap_or_else(|| chrono::Local::now().naive_local().date());
+
+    next_month_start.signed_duration_since(current_month_start).num_days() as u32
 }
 
 fn weeks_in_month(month_start: NaiveDate, monday_first: bool) -> usize {
